@@ -1,0 +1,66 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><title>BANANA Animation Studio</title><style>
+*{box-sizing:border-box}body{margin:0;background:#101014;color:#fff;font-family:system-ui;padding:18px}h1{font-size:20px;margin:0 0 5px}.sub{opacity:.6;font-size:12px;margin-bottom:14px}.grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(240px,360px);gap:14px}.card{background:#19191f;border:1px solid #333;border-radius:18px;padding:14px}canvas{display:block;width:min(100%,480px);aspect-ratio:1;background:#000;image-rendering:pixelated;border-radius:12px;touch-action:none}.tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}button{background:#292931;color:#fff;border:1px solid #555;border-radius:10px;padding:10px 12px;font-weight:750}.on{outline:2px solid #ffdd15}.frames{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.frame{aspect-ratio:1;padding:2px}.frame canvas{width:100%;border-radius:6px}.ok{color:#8cff9b}.bad{color:#ff7c7c}.lock{margin:10px 0;padding:10px;background:#111;border-radius:10px;font-size:12px}.preview{width:160px!important;margin:auto}.row{display:flex;justify-content:space-between;align-items:center;margin:10px 0}@media(max-width:760px){.grid{grid-template-columns:1fr}}</style>
+<h1>🍌 BANANA ANIMATION STUDIO</h1><div class="sub">MASTER LOCK • 48×48 • iPhone/iPad対応 • 8 WALK FRAMES</div><div class="grid"><div class="card"><canvas id="edit" width="480" height="480"></canvas><div class="tools"><button id="pen">PEN</button><button id="erase">ERASE</button><button id="undo">UNDO</button><button id="copy">MASTERへ戻す</button><button id="onion">ONION</button></div><div class="lock"><b>🔒 MASTER LOCK</b><br>顔（目・口）とヘタは編集禁止。色もMASTERの4色以外は使用不可。腕・脚周辺だけ編集できます。</div><div id="check" class="ok">✓ MASTER LOCK OK</div></div><div class="card"><div class="row"><b>WALK FRAMES</b><button id="play">▶ PREVIEW</button></div><div id="frames" class="frames"></div><hr style="border-color:#333"><canvas id="preview" class="preview" width="240" height="240"></canvas><div class="row"><span>FPS</span><input id="fps" type="range" min="3" max="14" value="8"></div><button id="export">EXPORT JSON</button></div></div>
+<script>
+const MASTER=`000000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000000
+000000000000000000000000222200000000000000000000
+000000000000000000000002222220000000000000000000
+000000000000000000000022222220000000000000000000
+000000000000000000000002222220000000000000000000
+000000000000000000001110000200000000000000000000
+000000000000000000011111110000000000000000000000
+000000000000000000011111111000000000000000000000
+000000000000000000111111111100000000000000000000
+000000000000000000111111111100000000000000000000
+000000000000000000111111111110000000000000000000
+000000000000000001111111111110000000000000000000
+000000000000000001111111111111000000000000000000
+000000000000000011111111111111000000000000000000
+000000000000000011111111111111100000000000000000
+000000000000000111111111111111100000000000000000
+000000000000000111111301111301100000000000000000
+000000000000000111111001111001100000000000000000
+000000000000000111111001111001100000000000000000
+000000000000000111111001111001100000000000000000
+000000000000000111111111111111100000000000000000
+000000000000000111111111111111100000000000000000
+000000000000000111111110000111100000000000000000
+000000000000000111111111111111100000000000000000
+000000000000000111111111111111100000000000000000
+000000000000000111111111111111100000000000000000
+000000000000001111111111111111100000000000000000
+000000000000001111111111111111100000000000000000
+000000000000011110111111111111101000000000000000
+000000000000011110111111111111101100000000000000
+000000000000111101111111111111101100000000000000
+000000000000111011111111111111101110000000000000
+000000000000111101111111111111101110000000000000
+000000000000111101111111111111100110000000000000
+000000000000011101111111111111000000000000000000
+000000000000000011111111111110000000000000000000
+000000000000000011111111111100000000000000000000
+000000000000000011111111111100000000000000000000
+000000000000000011001111111000000000000000000000
+000000000000000011000111110100000000000000000000
+000000000000000011000000001100000000000000000000
+000000000000000011100000001110000000000000000000
+000000000000000011111000001111100000000000000000
+000000000000000011111000001111100000000000000000
+000000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000000`.split('\n').map(r=>[...r].map(Number)),COL=['#000','#fedd15','#704421','#fff'];let frames=Array.from({length:8},()=>MASTER.map(r=>r.slice())),sel=0,tool=1,onion=true,undo=[];
+const edit=document.querySelector('#edit'),ctx=edit.getContext('2d');ctx.imageSmoothingEnabled=false;
+function locked(x,y){return (y>=3&&y<=7&&x>=20&&x<=29)||(y>=18&&y<=25&&x>=20&&x<=30)||(y>=8&&y<=29&&x>=17&&x<=31)}
+function editable(x,y){return !locked(x,y)&&((x>=10&&x<=19&&y>=28&&y<=46)||(x>=30&&x<=37&&y>=28&&y<=46)||(x>=15&&x<=31&&y>=36&&y<=46))}
+function drawGrid(c,data,alpha=1){const z=c.width/48,g=c.getContext('2d');g.globalAlpha=alpha;g.fillStyle='#000';g.fillRect(0,0,c.width,c.height);for(let y=0;y<48;y++)for(let x=0;x<48;x++){let v=data[y][x];if(v){g.fillStyle=COL[v];g.fillRect(x*z,y*z,z,z)}}g.globalAlpha=1}
+function render(){drawGrid(edit,frames[sel]);ctx.strokeStyle='rgba(255,255,255,.08)';for(let i=0;i<=48;i++){ctx.beginPath();ctx.moveTo(i*10,0);ctx.lineTo(i*10,480);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*10);ctx.lineTo(480,i*10);ctx.stroke()}document.querySelectorAll('.frame').forEach((b,i)=>{b.classList.toggle('on',i===sel);drawGrid(b.querySelector('canvas'),frames[i])});validate()}
+function validate(){let bad=0;for(let y=0;y<48;y++)for(let x=0;x<48;x++)if(locked(x,y)&&frames[sel][y][x]!==MASTER[y][x])bad++;let el=document.querySelector('#check');el.textContent=bad?'✕ LOCK VIOLATION: '+bad+' pixels':'✓ MASTER LOCK OK';el.className=bad?'bad':'ok'}
+function paint(e){let r=edit.getBoundingClientRect(),x=Math.floor((e.clientX-r.left)/r.width*48),y=Math.floor((e.clientY-r.top)/r.height*48);if(!editable(x,y))return;frames[sel][y][x]=tool?1:0;render()}
+edit.onpointerdown=e=>{undo.push(frames[sel].map(r=>r.slice()));edit.setPointerCapture(e.pointerId);paint(e)};edit.onpointermove=e=>{if(e.buttons)paint(e)};
+for(let i=0;i<8;i++){let b=document.createElement('button');b.className='frame';b.innerHTML='<canvas width="96" height="96"></canvas>';b.onclick=()=>{sel=i;render()};document.querySelector('#frames').appendChild(b)}
+pen.onclick=()=>tool=1;erase.onclick=()=>tool=0;copy.onclick=()=>{undo.push(frames[sel]);frames[sel]=MASTER.map(r=>r.slice());render()};document.querySelector('#undo').onclick=()=>{if(undo.length){frames[sel]=undo.pop();render()}};document.querySelector('#onion').onclick=()=>onion=!onion;
+let timer=null,pi=0;play.onclick=()=>{if(timer){clearInterval(timer);timer=null;play.textContent='▶ PREVIEW';return}play.textContent='■ STOP';timer=setInterval(()=>{drawGrid(preview,frames[pi++%8])},1000/+fps.value)};
+document.querySelector('#export').onclick=()=>{let a=document.createElement('a'),blob=new Blob([JSON.stringify({version:1,size:48,palette:COL,frames})],{type:'application/json'});a.href=URL.createObjectURL(blob);a.download='banana-walk.json';a.click()};
+render();drawGrid(preview,frames[0]);
+</script>
