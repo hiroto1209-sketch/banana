@@ -1,0 +1,24 @@
+name: Banana Master Guard
+on:
+  push:
+    paths: ['animations/**','tools/**']
+  pull_request:
+    paths: ['animations/**','tools/**']
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guard animation JSON
+        run: |
+          python3 - <<'PY'
+          import json,glob,sys
+          for f in glob.glob('animations/*.json'):
+            d=json.load(open(f))
+            assert d.get('size')==48, f+' must be 48x48'
+            assert len(d.get('frames',[])) in (4,8), f+' must contain 4 or 8 frames'
+            for fr in d['frames']:
+              assert len(fr)==48 and all(len(r)==48 for r in fr), f+' invalid grid'
+              assert all(v in (0,1,2,3) for r in fr for v in r), f+' invalid palette index'
+          print('BANANA MASTER GUARD OK')
+          PY
